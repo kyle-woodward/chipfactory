@@ -1,6 +1,6 @@
 import pickle
 import ee
-import postprocessors as pp
+import src.postprocessors as pp
 class ChipFactory:
     def __init__(self, image, chip_locations, output_location, output_type):
         self.IMAGE = image # image source (ee.Image, STAC)
@@ -57,11 +57,37 @@ class ChipFactoryEE(ChipFactory):
              crs:str='EPSG:4326',
              chip_x:int=256, 
              chip_y:int=256,
-             workoad_tag:str='test',
+             workload_tag:str='test',
              request_limit:int=20):
         
         print('running EE specific chipper')
-
+        
+        # Factory Level Variables for all chipping requests
+        proj = ee.Projection(crs).atScale(scale).getInfo()
+        
+        factory_settings = {
+         'image': self.IMAGE,
+         'bands': bands,
+         'coord_list':self.CHIP_LOCATIONS,
+         'proj': proj,
+         'scale_x': proj['transform'][0],
+         'scale_y': -proj['transform'][4],
+         'output_type': self.OUTPUT_TYPE,
+        'chip_x': chip_x,
+        'chip_y': chip_y,
+        'workload_tag': workload_tag,
+        'request_limit': request_limit
+        }
+        
+        # native_supported_formats = ["NUMPY_NDARRAY",
+        #                             "IMAGE_FILE_FORMAT_UNSPECIFIED",
+        #                             "GEO_TIFF", 
+        #                             "NPY", 
+        #                             "TF_RECORD_IMAGE"] # plus a few others not relevant
+        # if self.OUTPUT_TYPE not in native_supported_formats:
+        #     raise ValueError(f"Output Type {self.OUTPUT_TYPE} not supported. ",
+        #                      f"Supported formats: {native_supported_formats}")
+        
         def construct_request(coords, **kwargs):
             # Make a request object.
             request = {
@@ -89,108 +115,58 @@ class ChipFactoryEE(ChipFactory):
             return request
         
         def process_request(coords):
+            file_processors = {
+                # 'NUMPY_NDARRAY': pp.to_npy, 
+                'GEO_TIFF': pp.bytes_to_tiff, # testing
+                'NPY': pp.to_npy, # works when request is format NPY
+                # 'TF_RECORD_IMAGE': pp.to_tfrecord
+                }
+            
             # Construct the request for the current coords
-            request = construct_request(coords, 
-                                        **factory_settings)
+            request = construct_request(coords, **factory_settings)
 
             # Send the request and process the response
             response = ee.data.computePixels(request)
 
-            # Process the response as needed
-            # ...
+            file_processor = file_processors[self.OUTPUT_TYPE]
+            file_processor(response, self.OUTPUT_LOCATION, **factory_settings)
+            
             return response
         
         
-        # Factory Level Variables for all chipping requests
-        proj = ee.Projection(crs).atScale(scale).getInfo()
-        factory_settings = {
-         'image': self.IMAGE,
-         'bands': bands,
-         'coord_list':self.CHIP_LOCATIONS,
-         'proj': proj,
-         'scale_x': proj['transform'][0],
-         'scale_y': -proj['transform'][4],
-         'output_type': "NUMPY_NDARRAY",#self.OUTPUT_TYPE,
-        'chip_x': chip_x,
-        'chip_y': chip_y,
-        'workload_tag': workoad_tag,
-        'request_limit': request_limit
-        }
-        # native_supported_formats = ["NUMPY_NDARRAY",
-        #                             "IMAGE_FILE_FORMAT_UNSPECIFIED",
-        #                             "GEO_TIFF", 
-        #                             "NPY", 
-        #                             "TF_RECORD_IMAGE"] # plus a few others not relevant
-        # if self.OUTPUT_TYPE not in native_supported_formats:
-        #     raise ValueError(f"Output Type {self.OUTPUT_TYPE} not supported. ",
-        #                      f"Supported formats: {native_supported_formats}")
-
-        processors = {'NUMPY_NDARRAY': pp.to_npy,
-         'GEO_TIFF': pp.to_geotiff,
-         'NPY': pp.to_npy,
-         'TF_RECORD_IMAGE': pp.to_tfrecord}
-        
         for coords in self.CHIP_LOCATIONS:
             # Process the response according to defined output type
-            response = process_request(coords)
-            processor = processors[self.OUTPUT_TYPE]
-            processor(response, self.OUTPUT_LOCATION, **factory_settings)
+            process_request(coords)
             break
         
 
 class ChipFactorySTAC(ChipFactory):
-    def __init__(self, image, chip_locations, product): # any other auth requirements?
+    def __init__(self, image, chip_locations, product, *args): # any other auth requirements?
         super().__init__(image, chip_locations, product)
 
     def check_image(self):
         """check that the image is accessible"""
         pass
-    
+
+    def list_bands(self):
+        """list bands in image"""
+        pass
+
     def chip(self):
         print('running STAC specific chipper')
-    
-    def run(self):
-        """Checks Materials and Runs Extractor"""
-        print('running STAC specific extractor')
+        pass
 
-# testing
-img = "projects/pc511-gambia-training/assets/Pleiades_RGB_composite"
-points = [(-16.7021, 13.3686)]
-my_factory = ChipFactoryEE(img,
-                            points, 
-                            r"C:\Users\kyle\Downloads\chip_tests", 
-                            "GEO_TIFF",
-                            "pc511-gambia-training")
+class ChipFactoryLocal(ChipFactory):
+    def __init__(self, image, chip_locations, output_location, output_type, *args):
+        super().__init__(image, chip_locations, output_location, output_type)
 
-print(my_factory.IMAGE)
-print(my_factory.CHIP_LOCATIONS)
-print(my_factory.OUTPUT_LOCATION)
-print(my_factory.OUTPUT_TYPE)
-print(my_factory.INIT_PARAMS)
-print(my_factory.list_bands())
+    def check_image(self):
+        """check that the image is accessible"""
+        pass
 
-my_factory.chip(['b1', 'b2', 'b3'],  
-             scale=1, 
-             crs='EPSG:4326',
-             chip_x=256, 
-             chip_y=256,
-             workoad_tag='test-chipfactory-ee',
-             request_limit=20)
+    def list_bands(self):
+        """list bands in image"""
+        pass
 
-# my_factory.OUTPUT_TYPE = "GEO_TIFF"
-# my_factory.chip(['b1', 'b2', 'b3'],  
-#              scale=1, 
-#              crs='EPSG:4326',
-#              chip_x=5, 
-#              chip_y=5,
-#              workoad_tag='test-chipfactory-ee',
-#              request_limit=20)
-
-# my_factory.OUTPUT_TYPE = "NPY"
-# my_factory.chip(['b1', 'b2', 'b3'],  
-#              scale=1, 
-#              crs='EPSG:4326',
-#              chip_x=256, 
-#              chip_y=256,
-#              workoad_tag='test-chipfactory-ee',
-#              request_limit=20)
+    def chip(self):
+        print('running Local specific chipper')

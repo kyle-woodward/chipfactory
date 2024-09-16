@@ -2,6 +2,7 @@ import rasterio as rio
 from rasterio.io import MemoryFile
 import numpy as np
 import os
+from pprint import pprint
 
 def to_geotiff(data, output_path, **kwargs):
     """Write numpy ndarray to a GeoTIFF file"""
@@ -25,7 +26,7 @@ def to_geotiff(data, output_path, **kwargs):
 
 
 def to_npy(data, output_path, **kwargs):
-    np.save(output_path, data)
+    np.save(os.path.join(output_path,'test.npy'), data)
 
 def to_tfrecord(data, output_path, **kwargs):
     pass
@@ -33,3 +34,9 @@ def to_tfrecord(data, output_path, **kwargs):
 def blob_upload(data, output_path, **kwargs):
     """Upload data to blob storage (GCS, S3, etc)"""
     pass
+
+def bytes_to_tiff(response,output_path,**kwargs):
+    with MemoryFile(response) as memfile:
+        with memfile.open() as dataset:
+            with rio.open(os.path.join(output_path,'output.tif'), 'w', **dataset.profile) as dst:
+                dst.write(dataset.read())
