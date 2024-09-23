@@ -6,8 +6,8 @@ def test_chip_ee_gtiff():
     """Test ChipFactoryEE"""
     # Test ChipFactoryEE
     image = 'GOOGLE/DYNAMICWORLD/V1/20220108T160639_20220108T160732_T17SQB'
-    center = ee.Image(image).geometry().centroid()
-    chip_locations = [center.getInfo()['coordinates']]
+    chip_locations = (ee.FeatureCollection.randomPoints(ee.Image(image).geometry(), 5, 42, 0.001)
+                      .geometry().getInfo()['coordinates'])    
     
     output_location = r"C:\Users\kyle\Downloads\chip_tests"
     output_type = 'GEO_TIFF'
@@ -30,36 +30,15 @@ def test_chip_ee_gtiff():
                  crs='EPSG:4326', 
                  chip_x=256, 
                  chip_y=256, 
-                 workload_tag='test')
-    
+                 workload_tag='test') 
 test_chip_ee_gtiff()
-    
-def test_chip_ee_gtiff_private():
-    img = "projects/pc511-gambia-training/assets/Pleiades_RGB_composite"
-    points = [(-16.7021, 13.3686)]
-    my_factory = ChipFactoryEE(img,
-                                points, 
-                                r"C:\Users\kyle\Downloads\chip_tests_private", 
-                                "GEO_TIFF",
-                                "pc511-gambia-training")
-    my_factory.check_image()
-
-    my_factory.chip(['b1', 'b2', 'b3'],  
-                 scale=1, 
-                 crs='EPSG:4326',
-                 chip_x=256, 
-                 chip_y=256,
-                 workload_tag='test-chipfactory-ee',
-                 request_limit=20)
-    
-test_chip_ee_gtiff_private()
 
 def test_chip_ee_npy():
     """Test ChipFactoryEE"""
     # Test ChipFactoryEE
     image = 'GOOGLE/DYNAMICWORLD/V1/20220108T160639_20220108T160732_T17SQB'
-    center = ee.Image(image).geometry().centroid()
-    chip_locations = [center.getInfo()['coordinates']]
+    chip_locations = (ee.FeatureCollection.randomPoints(ee.Image(image).geometry(), 5, 42, 0.001)
+                      .geometry().getInfo()['coordinates'])  
     
     output_location = r"C:\Users\kyle\Downloads\chip_tests"
     output_type = 'NPY'
@@ -83,5 +62,26 @@ def test_chip_ee_npy():
                  chip_x=256, 
                  chip_y=256, 
                  workload_tag='test')
-    
 test_chip_ee_npy()
+
+def test_chip_ee_gtiff_private():
+    image = "projects/pc511-gambia-training/assets/Pleiades_RGB_composite"
+    chip_locations = (ee.FeatureCollection.randomPoints(ee.Image(image).geometry(), 5, 42, 0.001)
+                      .geometry().getInfo()['coordinates']) 
+    my_factory = ChipFactoryEE(image,
+                                chip_locations, 
+                                r"C:\Users\kyle\Downloads\chip_tests_private", 
+                                "GEO_TIFF",
+                                "pc511-gambia-training")
+    my_factory.check_image()
+
+    my_factory.chip(['b1', 'b2', 'b3'],  
+                 scale=1, 
+                 crs='EPSG:4326',
+                 chip_x=256, 
+                 chip_y=256,
+                 workload_tag='test-chipfactory-ee',
+                 request_limit=20)
+    
+test_chip_ee_gtiff_private()
+

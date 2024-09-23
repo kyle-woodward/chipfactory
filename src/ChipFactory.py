@@ -114,7 +114,7 @@ class ChipFactoryEE(ChipFactory):
 
             return request
         
-        def process_request(coords):
+        def process_request(coords,*args):
             file_processors = {
                 # 'NUMPY_NDARRAY': pp.to_npy, 
                 'GEO_TIFF': pp.bytes_to_tiff, # testing
@@ -129,15 +129,16 @@ class ChipFactoryEE(ChipFactory):
             response = ee.data.computePixels(request)
 
             file_processor = file_processors[self.OUTPUT_TYPE]
-            file_processor(response, self.OUTPUT_LOCATION, **factory_settings)
+            file_processor(response, self.OUTPUT_LOCATION, *args)
             
             return response
         
         
-        for coords in self.CHIP_LOCATIONS:
+        index = [f'chip_{i:03}' for i in range(len(self.CHIP_LOCATIONS))]
+        zipped = zip(index,self.CHIP_LOCATIONS)
+        for index,coords in zipped:
             # Process the response according to defined output type
-            process_request(coords)
-            break
+            process_request(coords, index)
         
 
 class ChipFactorySTAC(ChipFactory):
